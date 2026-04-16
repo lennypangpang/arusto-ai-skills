@@ -8,11 +8,11 @@ cost: data pulled from Kaggle API at runtime and cached in session.
 
 ## Team
 
-| Person | Owns |
-|--------|------|
-| Leo | Architecture, data loading, deployment, ML integration |
-| Mindy | Data processing, EDA, charts |
-| Sirui | ML model training, .pkl pipeline |
+| Role | Owns |
+|------|------|
+| Member 1 | Architecture, data loading, deployment, ML integration |
+| Member 2 | Data processing, EDA, charts |
+| Member 3 | ML model training, .pkl pipeline |
 
 ## Directory Structure
 
@@ -65,19 +65,19 @@ provide a toggle for full dataset. Apply sampling before writing parquet to keep
 
 ## Pages
 
-### 01_overview.py — skeleton (Mindy)
+### 01_overview.py — skeleton
 
 - Sidebar filters: company, location, date range
 - Chart: Top 10 Companies by job count (horizontal bar, seaborn/matplotlib)
 - Stub placeholders for future charts
 
-### 02_skills.py (Mindy)
+### 02_skills.py
 
 - Top N skills by frequency across all postings
 - Skills breakdown by industry or company (filterable)
 - Trend over time using `first_seen` / `last_processed_time` if available
 
-### 03_model.py (Sirui + Leo)
+### 03_model.py
 
 - Input: free-text job title or description
 - Output: predicted `category` label from loaded `.pkl`
@@ -115,7 +115,7 @@ The Kaggle dataset has no native `category` label. Two options:
 
 **Recommendation**: use `industry`, mapped to ~10 coarse buckets
 (e.g. Technology, Finance, Healthcare, Education, etc.).
-Sirui to finalize and document the mapping in `data/processor.py`.
+Finalize and document the mapping in `data/processor.py`.
 
 ## Shared Contracts
 
@@ -189,4 +189,4 @@ joblib
 - Database or cloud storage
 - Additional chart pages beyond skeleton stubs
 - Model retraining in-app
-- `category` mapping finalized (Sirui's open item)
+- `category` mapping finalized (open item)
