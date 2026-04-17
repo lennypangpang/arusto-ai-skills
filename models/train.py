@@ -18,7 +18,7 @@ from sklearn.metrics import classification_report
 from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.pipeline import Pipeline
 
-from data.processor import PARQUET_PATH, SAMPLE_N, build_features, get_merged
+from data.loader import load_parquet_from_r2
 
 MODEL_PATH = os.path.join(
     os.path.dirname(os.path.dirname(__file__)), "assets", "models", "baseline.pkl"
@@ -26,8 +26,7 @@ MODEL_PATH = os.path.join(
 
 
 def train() -> Pipeline:
-    df = get_merged(PARQUET_PATH, SAMPLE_N)
-    jobs_eda = build_features(df)
+    jobs_eda = load_parquet_from_r2()
     jobs_eda = jobs_eda[jobs_eda["category"].notna()].copy().reset_index(drop=True)
 
     X = jobs_eda["combined_text"].astype(str)
