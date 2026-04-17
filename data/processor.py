@@ -149,14 +149,27 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
+def _find_csv(data_dir: str, filename: str) -> str:
+    for root, _, files in os.walk(data_dir):
+        if filename in files:
+            return os.path.join(root, filename)
+    raise FileNotFoundError(
+        f"{filename} not found anywhere under {data_dir}. "
+        f"Contents: {list(os.walk(data_dir))}"
+    )
+
+
 def get_merged(parquet_path: str, sample_n: int) -> pd.DataFrame:
     if os.path.exists(parquet_path):
         return pd.read_parquet(parquet_path)
     if not os.path.exists(POSTINGS_PATH):
         download_kaggle_data(DATA_DIR)
-    postings   = load_postings(POSTINGS_PATH, sample_n)
-    skills_agg = aggregate_skills(SKILLS_PATH)
-    summary    = load_summary(SUMMARY_PATH)
+    postings_path = _find_csv(DATA_DIR, "linkedin_job_postings.csv")
+    skills_path   = _find_csv(DATA_DIR, "job_skills.csv")
+    summary_path  = _find_csv(DATA_DIR, "job_summary.csv")
+    postings   = load_postings(postings_path, sample_n)
+    skills_agg = aggregate_skills(skills_path)
+    summary    = load_summary(summary_path)
     df         = merge_datasets(postings, skills_agg, summary)
     os.makedirs(os.path.dirname(parquet_path), exist_ok=True)
     df.to_parquet(parquet_path, index=False)
