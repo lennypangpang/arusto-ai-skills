@@ -6,3 +6,4 @@ venv/
 .DS_Store
 .ruff_cache/
 .claude/
+.streamlit/secrets.toml

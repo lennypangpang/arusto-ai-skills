@@ -7,7 +7,7 @@ import streamlit as st
 from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.model_selection import train_test_split
 
-from data.processor import PARQUET_PATH, SAMPLE_N, build_features, get_merged
+from data.loader import load_parquet_from_r2
 from models.predict import load_model, predict_category
 
 st.set_page_config(page_title="Model", layout="wide")
@@ -25,8 +25,7 @@ def get_model():
 
 @st.cache_data
 def load_test_split() -> tuple[pd.Series, pd.Series]:
-    df = get_merged(PARQUET_PATH, SAMPLE_N)
-    jobs_eda = build_features(df)
+    jobs_eda = load_parquet_from_r2()
     jobs_eda = jobs_eda[jobs_eda["category"].notna()].copy()
     X = jobs_eda["combined_text"].astype(str)
     y = jobs_eda["category"].astype(str)

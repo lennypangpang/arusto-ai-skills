@@ -1,9 +1,8 @@
-import os
 import re
 
 import pandas as pd
 
-from data.loader import download_kaggle_data
+from data.loader import load_parquet_from_r2
 
 DATA_DIR = "/tmp/data"
 PARQUET_PATH = f"{DATA_DIR}/merged.parquet"
@@ -267,21 +266,5 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-def get_merged(parquet_path: str, sample_n: int) -> pd.DataFrame:
-    if os.path.exists(parquet_path):
-        return pd.read_parquet(parquet_path)
-    print("Downloading Kaggle dataset...")
-    download_kaggle_data(DATA_DIR)
-    print(f"Loading postings (first {sample_n:,} rows)...")
-    postings = load_postings(POSTINGS_PATH, sample_n)
-    job_links = set(postings["job_link"])
-    print(f"Loading skills for {len(job_links):,} jobs...")
-    skills_agg = aggregate_skills(SKILLS_PATH, job_links)
-    print("Loading summaries...")
-    summary = load_summary(SUMMARY_PATH, job_links)
-    df = merge_datasets(postings, skills_agg, summary)
-    df = build_features(df)
-    os.makedirs(os.path.dirname(parquet_path), exist_ok=True)
-    df.to_parquet(parquet_path, index=False)
-    print("Parquet cached.")
-    return df
+def get_merged() -> pd.DataFrame:
+    return load_parquet_from_r2()

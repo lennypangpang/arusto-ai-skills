@@ -23,7 +23,7 @@ arusto-skills-taxonomy/
 │
 ├── data/
 │   ├── processor.py              # Full pipeline: load → merge → build_features → parquet
-│   └── loader.py                 # Kaggle download (reads env vars or st.secrets)
+│   └── loader.py                 # R2 + Kaggle loaders (reads env vars or st.secrets)
 │
 ├── components/
 │   ├── charts.py                 # Shared chart helpers (top_companies_chart, etc.)
@@ -64,6 +64,8 @@ Kaggle dataset: `asaniczka/1-3m-linkedin-jobs-and-skills-2024`
 
 ## Data Flow
 
+### Offline pipeline (already completed)
+
 ```
 Kaggle CSVs (raw, ~several GB)
         │
@@ -74,16 +76,31 @@ data/processor.py::get_merged()
   └── load_summary()        chunked read, filter to sampled job_links
         │
         ▼
-/tmp/data/merged.parquet    ← written on first run, read on subsequent runs
+/tmp/data/merged.parquet
         │
         ▼
 data/processor.py::build_features()
   ├── derived columns: job_title_len, n_skills, combined_text, skills_norm
   └── category: keyword match on job_title → 8 buckets (see below)
         │
-        ├──▶ pages/01_overview.py   (uses merged only, no build_features)
-        ├──▶ pages/02_skills.py     (uses build_features output)
-        └──▶ pages/03_model.py      (uses build_features + baseline.pkl)
+        ▼
+/tmp/data/merged.parquet  (features already included)
+        │
+        ▼
+uploaded to Cloudflare R2: arusto-skills/merged.parquet  ✅
+```
+
+### App (production)
+
+```
+Cloudflare R2: arusto-skills/merged.parquet
+        │
+        ▼
+data/loader.py::load_parquet_from_r2()   ← reads into memory, no disk write
+        │
+        ├──▶ pages/01_overview.py
+        ├──▶ pages/02_skills.py
+        └──▶ pages/03_model.py   (+ baseline.pkl)
 ```
 
 ---
@@ -126,30 +143,25 @@ mount it as a volume.
 
 | Layer | Mechanism | Scope |
 |---|---|---|
-| Raw → parquet | `os.path.exists` + write on first run | Persists to `/tmp/data/` |
-| `get_merged()` | `@st.cache_data` in each page | Per Streamlit session |
+| R2 → DataFrame | `load_parquet_from_r2()` + `@st.cache_data` | Per Streamlit session |
 | `build_features()` | `@st.cache_data` in each page | Per Streamlit session |
 | `baseline.pkl` | `@st.cache_resource` | Per Streamlit process |
 | Co-occurrence pairs | `@st.cache_data` | Per Streamlit session |
 
-**Known issue:** `/tmp/` is ephemeral on Streamlit Cloud — parquet is regenerated on every
-cold start, which takes several minutes (Kaggle download + CSV processing).
+Cold start reads parquet from R2 into memory (~20s). No ephemeral disk dependency.
 
 ---
 
-## Planned Improvement: Cloudflare R2 Parquet Cache
+## Cloudflare R2 Parquet Cache (implemented)
 
-Replace the Kaggle download path with a pre-built parquet served from R2:
+Replaced the Kaggle download path with a pre-built parquet in R2:
 
-1. Run pipeline locally → generate `jobs.parquet`
-2. Upload to Cloudflare R2 bucket (free, zero egress fees)
-3. Set bucket public, add URL to `st.secrets["PARQUET_URL"]`
-4. `get_merged()` downloads parquet directly if not cached — cold start drops from ~5min to ~20s
-5. Kaggle credentials no longer needed in production
+1. ✅ Pipeline run locally → `merged.parquet` generated
+2. ✅ Uploaded to Cloudflare R2 (`arusto-skills/merged.parquet`, private bucket)
+3. App reads directly from R2 into memory via `load_parquet_from_r2()` — cold start drops from ~5min to ~20s
+4. Kaggle credentials no longer needed in production
 
-**Code change:** `_download_parquet(dest_path)` fetches from `PARQUET_URL` via
-`urllib.request.urlretrieve`. Parquet is still written to `/tmp/data/merged.parquet` so
-warm page navigations stay instant.
+**Credentials:** `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY` — set in env vars or Streamlit secrets.
 
 ---
 
@@ -159,9 +171,8 @@ warm page navigations stay instant.
 Set secrets in the Streamlit Cloud dashboard:
 
 ```toml
-KAGGLE_USERNAME = "..."   # only needed if R2 not configured
-KAGGLE_KEY      = "..."   # only needed if R2 not configured
-PARQUET_URL     = "..."   # R2 public URL once configured
+R2_ACCESS_KEY_ID     = "..."
+R2_SECRET_ACCESS_KEY = "..."
 ```
 
 **Docker (local):**
