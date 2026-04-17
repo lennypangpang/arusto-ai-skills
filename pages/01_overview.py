@@ -4,7 +4,7 @@ import streamlit as st
 
 from components.charts import top_companies_chart
 from components.filters import sidebar_filters
-from data.processor import PARQUET_PATH, SAMPLE_N, get_merged
+from data.loader import load_parquet_from_r2
 
 st.set_page_config(page_title="Overview", layout="wide")
 st.title("Overview")
@@ -12,7 +12,7 @@ st.title("Overview")
 
 @st.cache_data
 def load_data() -> pd.DataFrame:
-    return get_merged(PARQUET_PATH, SAMPLE_N)
+    return load_parquet_from_r2()
 
 
 with st.status(

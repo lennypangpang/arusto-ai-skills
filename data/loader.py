@@ -1,5 +1,44 @@
 import os
 
+import pandas as pd
+
+R2_ENDPOINT = "https://a9e4828e0e2c14c92a0618cded4bf6b6.r2.cloudflarestorage.com"
+R2_BUCKET = "arusto-skills"
+R2_KEY = "merged.parquet"
+
+
+def _get_r2_credentials() -> tuple[str, str]:
+    key_id = os.environ.get("R2_ACCESS_KEY_ID")
+    secret = os.environ.get("R2_SECRET_ACCESS_KEY")
+    if key_id and secret:
+        return key_id, secret
+    try:
+        import streamlit as st
+
+        key_id = st.secrets.get("R2_ACCESS_KEY_ID")
+        secret = st.secrets.get("R2_SECRET_ACCESS_KEY")
+        if key_id and secret:
+            return key_id, secret
+    except (ImportError, FileNotFoundError, KeyError):
+        pass
+    raise OSError(
+        "R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY must be set "
+        "in environment variables or Streamlit secrets."
+    )
+
+
+def load_parquet_from_r2() -> pd.DataFrame:
+    key_id, secret = _get_r2_credentials()
+    storage_options = {
+        "key": key_id,
+        "secret": secret,
+        "client_kwargs": {"endpoint_url": R2_ENDPOINT},
+    }
+    return pd.read_parquet(
+        f"s3://{R2_BUCKET}/{R2_KEY}",
+        storage_options=storage_options,
+    )
+
 
 def download_kaggle_data(dest_dir: str) -> None:
     from kaggle.api.kaggle_api_extended import KaggleApi
