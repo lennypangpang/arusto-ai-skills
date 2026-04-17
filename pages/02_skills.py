@@ -30,7 +30,9 @@ def compute_cooccurrence(skills_series: pd.Series) -> pd.DataFrame:
     ).set_index("skill_pair")
 
 
-df = load_data()
+with st.status("Loading data — this may take a few minutes on first run...", expanded=False):
+    df = load_data()
+
 df = df[df["category"].notna()].copy()
 df = sidebar_filters(df)
 

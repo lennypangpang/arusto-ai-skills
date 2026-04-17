@@ -15,7 +15,9 @@ def load_data() -> pd.DataFrame:
     return get_merged(PARQUET_PATH, SAMPLE_N)
 
 
-df = load_data()
+with st.status("Loading data — this may take a few minutes on first run...", expanded=False):
+    df = load_data()
+
 df = sidebar_filters(df)
 
 col1, col2, col3 = st.columns(3)
