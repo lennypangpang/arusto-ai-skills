@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import tempfile
 
-from data.loader import _get_s3_client, download_kaggle_data, upload_parquet_to_r2
+from dotenv import load_dotenv
+
+load_dotenv()
+
+from data.loader import _get_s3_client, download_kaggle_data, upload_parquet_if_missing
 from data.processor import (
     build_features,
     build_label_rollup,
@@ -40,11 +44,11 @@ def main() -> None:
 
         print("Uploading to R2...")
         s3 = _get_s3_client()
-        upload_parquet_to_r2(featured, "merged.parquet", s3)
-        upload_parquet_to_r2(topic_rankings, "topic_rankings.parquet", s3)
-        upload_parquet_to_r2(label_rollup, "label_rollup.parquet", s3)
-        upload_parquet_to_r2(skill_theme_map, "skill_theme_map.parquet", s3)
-        upload_parquet_to_r2(skill_bundles, "skill_bundles.parquet", s3)
+        upload_parquet_if_missing(featured, "merged.parquet", s3)
+        upload_parquet_if_missing(topic_rankings, "topic_rankings.parquet", s3)
+        upload_parquet_if_missing(label_rollup, "label_rollup.parquet", s3)
+        upload_parquet_if_missing(skill_theme_map, "skill_theme_map.parquet", s3)
+        upload_parquet_if_missing(skill_bundles, "skill_bundles.parquet", s3)
         print("Done.")
 
 
