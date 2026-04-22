@@ -1,40 +1,54 @@
 # Skills in Demand Dashboard
-Analytics in Practice, Spring 2026         
-Streamlit dashboard surfacing labor market intelligence from 1.3M LinkedIn job postings. Analyzes skill frequency, job category distribution, and provides a live job category predictor.
+Analytics in Practice, Spring 2026
+
+Streamlit dashboard surfacing labor market intelligence from 1.3M LinkedIn job postings. Answers: **"What courses should institutions build next?"**
 
 ## Pages
 
 | Page | Description |
 |---|---|
 | 01 Overview | Job titles, companies, locations, temporal trends |
-| 02 Skills | Top skills by frequency, category breakdown, co-occurrence |
-| 03 Model | Live job category predictor + model evaluation |
+| 02 Skills | Top skills by frequency, category breakdown, co-occurrence heatmap |
+| 03 Model | Live job category predictor + confusion matrix |
+| 04 Courses | Course opportunity rankings, skill themes, co-occurrence bundles |
 
 ## Data
 
-Source: [`asaniczka/1-3m-linkedin-jobs-and-skills-2024`](https://www.kaggle.com/datasets/asaniczka/1-3m-linkedin-jobs-and-skills-2024) on Kaggle — sampled to 200k postings.
+Source: [`asaniczka/1-3m-linkedin-jobs-and-skills-2024`](https://www.kaggle.com/datasets/asaniczka/1-3m-linkedin-jobs-and-skills-2024) on Kaggle — full 1.3M postings.
 
-Pre-processed parquet (`merged.parquet`) lives in Cloudflare R2. The app reads it directly via DuckDB HTTP range requests — no full file download, no Kaggle credentials needed at runtime.
+Pre-processed parquets live in Cloudflare R2. The app reads them directly via DuckDB HTTP range requests — no full file download, no Kaggle credentials needed at runtime.
+
+| Parquet | Contents |
+|---|---|
+| `merged.parquet` | Full merged + featured dataset (1.3M rows) |
+| `topic_rankings.parquet` | Ranked course topics with opportunity scores |
+| `label_rollup.parquet` | Score rollup by opportunity label |
+| `skill_theme_map.parquet` | Top skills → ML-predicted theme |
+| `skill_bundles.parquet` | Top co-occurring skill pairs |
 
 ## Architecture
 
 ```
-Cloudflare R2 (merged.parquet)
+Cloudflare R2 (parquets)
         │
         ▼
-DuckDB (httpfs) — columnar SQL queries, fetches only required columns
+DuckDB (httpfs) — columnar SQL, HTTP range requests, no full download
         │
         ▼
-Streamlit pages — aggregated DataFrames → Plotly charts
+Streamlit pages — cached queries → charts and dataframes
 ```
+
+Each user session gets its own DuckDB connection (`st.session_state`). Query results are shared across sessions via `@st.cache_data`.
 
 ## ML Model
 
-TF-IDF + Logistic Regression classifier predicting one of 8 job categories (TECHNOLOGY, DATA-ANALYTICS, MARKETING, SALES, FINANCE, HR-OPERATIONS, PRODUCT-DESIGN, CUSTOMER-SUCCESS).
+Weakly supervised classifier: seed keywords → TF-IDF char-ngram (3–5) + SGD, predicting one of 9 skill themes + "Domain / Other".
 
 - Input: `combined_text` = job title + summary + skills
-- Train: `python models/train.py` (run locally, not in the app)
-- Output: `assets/models/baseline.pkl` — not committed, mount as volume or generate locally
+- Train offline: `python models/train.py` → `assets/models/baseline.pkl`
+- The pkl is not committed — generate locally or mount as a volume
+
+Course opportunity score: `0.40 × volume + 0.35 × salary_proxy + 0.25 × breadth` (all metrics Min-Max scaled to [0, 100]).
 
 ## Setup
 
@@ -44,14 +58,31 @@ TF-IDF + Logistic Regression classifier predicting one of 8 job categories (TECH
 docker compose up
 ```
 
-Mounts `./assets/models` so the pkl can be swapped without rebuilding.
-
 ### Local (bare)
 
 ```bash
 pip install -r requirements.txt
 streamlit run streamlit_app.py
 ```
+
+Credentials go in `.env` (local) or Streamlit secrets (production):
+
+```
+R2_ACCESS_KEY_ID=...
+R2_SECRET_ACCESS_KEY=...
+KAGGLE_USERNAME=...   # pipeline only
+KAGGLE_KEY=...        # pipeline only
+```
+
+## Pipeline
+
+Run to re-download the dataset, rebuild all parquets, and upload to R2:
+
+```bash
+python pipeline.py
+```
+
+Requires Kaggle and R2 credentials. Takes ~25 minutes on a fast connection.
 
 ## Development
 
@@ -64,28 +95,31 @@ ruff format .
 docker build -t arusto-skills-taxonomy .
 ```
 
-CI runs lint then Docker build on every push. Both must pass before merge.
+CI runs lint then Docker build on every push.
 
 ## Structure
 
 ```
 streamlit_app.py          # Entry point, multipage nav
 pages/
-  01_overview.py          # Market overview page
-  02_skills.py            # Skills analysis page
-  03_model.py             # Predictor page
+  01_overview.py          # Market overview
+  02_skills.py            # Skills analysis + co-occurrence heatmap
+  03_model.py             # Job category predictor
+  04_courses.py           # Course opportunity dashboard
+pipeline.py               # Offline pipeline: download → process → upload to R2
 data/
-  processor.py            # Offline pipeline: load → merge → build_features → parquet
-  loader.py               # R2 loader
-  db.py                   # DuckDB connection over R2
+  processor.py            # load, merge, build_features, score_topics
+  loader.py               # R2 upload/download helpers
+  db.py                   # DuckDB connection (per-session via st.session_state)
 components/
-  charts.py               # Shared Plotly chart helpers
-  filters.py              # Sidebar filters
+  charts.py               # Shared chart helpers
+  filters.py              # Sidebar company/location filters
 models/
   train.py                # Offline training script
   predict.py              # load_model(), predict_category()
 assets/models/
   baseline.pkl            # Generated by train.py — not committed
 ```
+
 ## Team
 Muxi Chen, Leo Lin, Sirui Wang
