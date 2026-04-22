@@ -166,5 +166,5 @@ if pivot.empty:
 else:
     st.dataframe(
         pivot.style.background_gradient(cmap="Blues"),
-        use_container_width=True,
+        width="stretch",
     )
