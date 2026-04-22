@@ -14,7 +14,7 @@ company, location = sidebar_filters(conn)
 
 
 @st.cache_data
-def get_metrics(_conn, company: str, location: str) -> tuple:
+def get_metrics(_conn, company: str, location: str) -> tuple[int, int, int]:
     conditions, params = filter_conditions(company, location)
     where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
     return _conn.execute(
