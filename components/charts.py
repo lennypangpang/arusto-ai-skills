@@ -50,7 +50,7 @@ def skills_frequency_chart(
         .mark_bar()
         .encode(
             x=alt.X("skill:N", sort=None, title="Skill"),
-            y=alt.Y('Count:Q', title="Count"),
+            y=alt.Y("Count:Q", title="Count"),
         )
     )
     st.altair_chart(chart, use_container_width=True)
