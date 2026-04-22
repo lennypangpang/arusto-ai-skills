@@ -130,7 +130,9 @@ def aggregate_skills(skills_raw: pd.DataFrame) -> pd.DataFrame:
     # skills stored as comma-separated string for efficient parquet storage + DuckDB querying
     return (
         skills_raw.groupby("job_link")["job_skills"]
-        .apply(lambda xs: ",".join(_norm_text(x) for x in xs if _norm_text(x)))
+        .apply(lambda xs: ",".join(
+            _norm_text(x) for x in xs if pd.notna(x) and _norm_text(x)
+        ))
         .reset_index()
         .rename(columns={"job_skills": "skills_norm"})
     )

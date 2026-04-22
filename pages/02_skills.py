@@ -24,9 +24,9 @@ def compute_cooccurrence(skills_series: pd.Series) -> pd.DataFrame:
     pair_counts: Counter = Counter()
     for xs in skills_series:
         if isinstance(xs, list):
-            skills = [s.strip() for s in xs if s and s.strip()]
+            skills = [s.strip() for s in xs if s and s.strip() and s.strip() != 'nan']
         else:
-            skills = [s.strip() for s in str(xs).split(",") if s.strip()]
+            skills = [s.strip() for s in str(xs).split(",") if s.strip() and s.strip() != 'nan']
         uniq = sorted(set(skills))[:40]
         for a, b in combinations(uniq, 2):
             pair_counts[(a, b)] += 1
@@ -74,7 +74,7 @@ top_cat_skills = (
         FROM read_parquet('{PARQUET_S3_PATH}')
         {cat_where}
     )
-    WHERE skill IS NOT NULL AND TRIM(skill) != ''
+    WHERE skill IS NOT NULL AND TRIM(skill) != '' AND LOWER(TRIM(skill)) != 'nan'
     GROUP BY skill ORDER BY "Count" DESC LIMIT 20
     """,
         cat_params,
