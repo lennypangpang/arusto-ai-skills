@@ -205,12 +205,17 @@ with tabs[0]:
 
     with col_l:
         st.subheader(f"Top {top_n} most mentioned skills")
-        st.bar_chart(get_top_skills(top_n).set_index("skill")["skill_count"], height=400)
+        st.bar_chart(
+            get_top_skills(top_n).set_index("skill")["skill_count"].astype(float),
+            height=400,
+        )
 
     with col_r:
         st.subheader(f"Top {top_n} course topics by opportunity score")
         st.bar_chart(
-            get_top_topics_chart(top_n).set_index("course_topic")["course_opportunity_score"],
+            get_top_topics_chart(top_n)
+            .set_index("course_topic")["course_opportunity_score"]
+            .astype(float),
             height=400,
         )
 
@@ -232,7 +237,9 @@ with tabs[0]:
     if trend_df.empty or trend_df["trend_30d"].eq(0).all():
         st.info("No trend signal — dataset lacks sufficient temporal spread for a 30-day comparison.")
     else:
-        st.bar_chart(trend_df.set_index("course_topic")["trend_30d"], height=300)
+        st.bar_chart(
+            trend_df.set_index("course_topic")["trend_30d"].astype(float), height=300
+        )
 
     st.divider()
     st.subheader("Job explorer")
@@ -245,7 +252,7 @@ with tabs[0]:
     )
     st.dataframe(
         get_job_explorer(search=search_text, label=label_filter),
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
 
@@ -253,17 +260,17 @@ with tabs[0]:
     st.subheader("Ranked course topics")
     st.dataframe(
         get_topic_rankings(label=label_sel, top_n=top_n),
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
     st.subheader("Label rollup")
-    st.dataframe(get_label_rollup(), use_container_width=True, hide_index=True)
+    st.dataframe(get_label_rollup(), width="stretch", hide_index=True)
 
 with tabs[1]:
     st.subheader("Skill theme breakdown — total mentions per theme")
     theme_counts = get_theme_counts(min_conf)
     st.bar_chart(
-        theme_counts.set_index("ml_theme")["total_mentions"],
+        theme_counts.set_index("ml_theme")["total_mentions"].astype(float),
         height=350,
     )
 
@@ -275,20 +282,20 @@ with tabs[1]:
     )
     col1, col2 = st.columns([2, 1])
     with col1:
-        st.dataframe(get_skill_themes(min_conf), use_container_width=True, hide_index=True)
+        st.dataframe(get_skill_themes(min_conf), width="stretch", hide_index=True)
     with col2:
-        st.dataframe(theme_counts, use_container_width=True, hide_index=True)
+        st.dataframe(theme_counts, width="stretch", hide_index=True)
 
 with tabs[2]:
     st.subheader("Skill co-occurrence heatmap (top 15 skills)")
     st.dataframe(
         get_cooccurrence_pivot(15).style.background_gradient(cmap="Blues"),
-        use_container_width=True,
+        width="stretch",
     )
 
     st.divider()
     st.subheader("Skill bundling evidence (co-occurrence pairs)")
-    st.dataframe(get_skill_bundles(), use_container_width=True, hide_index=True)
+    st.dataframe(get_skill_bundles(), width="stretch", hide_index=True)
     st.caption(
         "Skills like communication, problem solving, and adaptability co-occur as bundles — "
         "supporting bundled course design."
