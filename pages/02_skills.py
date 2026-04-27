@@ -34,7 +34,7 @@ def get_categories(_conn: object) -> list[str]:
 @st.cache_data
 def get_top_cat_skills(_conn: object, category: str) -> pd.DataFrame:
     conditions = ["category IS NOT NULL"]
-    params: list = []
+    params: list[str] = []
     if category != "All":
         conditions.append("category = ?")
         params.append(category)
