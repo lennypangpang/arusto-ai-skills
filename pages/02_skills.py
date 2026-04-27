@@ -5,17 +5,16 @@ import pandas as pd
 import streamlit as st
 
 from components.charts import skills_frequency_chart
-from components.filters import sidebar_filters
-from data.db import PARQUET_S3_PATH, filter_conditions, get_db_connection
+from data.db import PARQUET_S3_PATH, SKILL_THEME_MAP_S3_PATH, get_db_connection
 
 st.set_page_config(page_title="Skills", layout="wide")
 st.title("Skills Analysis")
 
 conn = get_db_connection()
-company, location = sidebar_filters(conn)
 
 _COOCCURRENCE_SAMPLE = 50_000
 _HEATMAP_SKILLS = 15
+_THEME_HEATMAP_SAMPLE = 100_000
 
 
 @st.cache_data
@@ -33,11 +32,9 @@ def get_categories(_conn: object) -> list[str]:
 
 
 @st.cache_data
-def get_top_cat_skills(
-    _conn: object, company: str, location: str, category: str
-) -> pd.DataFrame:
-    conditions, params = filter_conditions(company, location)
-    conditions.append("category IS NOT NULL")
+def get_top_cat_skills(_conn: object, category: str) -> pd.DataFrame:
+    conditions = ["category IS NOT NULL"]
+    params: list = []
     if category != "All":
         conditions.append("category = ?")
         params.append(category)
@@ -62,19 +59,13 @@ def get_top_cat_skills(
 
 
 @st.cache_data
-def get_cooccurrence_filtered(
-    _conn: object, company: str, location: str
-) -> pd.DataFrame:
-    conditions, params = filter_conditions(company, location)
-    conditions.append("category IS NOT NULL")
-    where = f"WHERE {' AND '.join(conditions)}"
+def get_cooccurrence(_conn: object) -> pd.DataFrame:
     skills_series = _conn.execute(
         f"""
         SELECT skills_norm FROM read_parquet('{PARQUET_S3_PATH}')
-        {where}
+        WHERE category IS NOT NULL
         LIMIT {_COOCCURRENCE_SAMPLE}
         """,
-        params,
     ).df()["skills_norm"]
 
     pair_counts: Counter = Counter()
@@ -83,7 +74,8 @@ def get_cooccurrence_filtered(
             skills = [s.strip() for s in xs if s and s.strip() and s.strip() != "nan"]
         else:
             skills = [
-                s.strip() for s in str(xs).split(",")
+                s.strip()
+                for s in str(xs).split(",")
                 if s.strip() and s.strip() != "nan"
             ]
         uniq = sorted(set(skills))[:40]
@@ -97,6 +89,43 @@ def get_cooccurrence_filtered(
     if not rows:
         return pd.DataFrame(columns=["skill_a", "skill_b", "cooccur_count"])
     return pd.DataFrame(rows)
+
+
+@st.cache_data
+def get_skill_theme_matrix(_conn: object) -> pd.DataFrame:
+    raw = _conn.execute(
+        f"""
+        WITH top_skills AS (
+            SELECT skill FROM read_parquet('{SKILL_THEME_MAP_S3_PATH}')
+            ORDER BY skill_count DESC LIMIT {_HEATMAP_SKILLS}
+        ),
+        skill_cat AS (
+            SELECT
+                TRIM(sk) AS skill,
+                category,
+                COUNT(*) AS cnt
+            FROM (
+                SELECT UNNEST(string_split(skills_norm, ',')) AS sk, category
+                FROM read_parquet('{PARQUET_S3_PATH}')
+                WHERE skills_norm IS NOT NULL AND category IS NOT NULL
+                LIMIT {_THEME_HEATMAP_SAMPLE}
+            )
+            WHERE TRIM(sk) != '' AND LOWER(TRIM(sk)) != 'nan'
+            GROUP BY skill, category
+        )
+        SELECT sc.skill, sc.category, sc.cnt
+        FROM skill_cat sc
+        JOIN top_skills ts ON sc.skill = ts.skill
+        """
+    ).df()
+    if raw.empty:
+        return pd.DataFrame()
+    pivot = raw.pivot_table(
+        index="skill", columns="category", values="cnt", fill_value=0
+    )
+    pivot.columns.name = None
+    pivot.index.name = None
+    return pivot
 
 
 def _build_pivot(bundles: pd.DataFrame, top_n: int) -> pd.DataFrame:
@@ -116,7 +145,6 @@ def _build_pivot(bundles: pd.DataFrame, top_n: int) -> pd.DataFrame:
     pivot = filtered.pivot_table(
         index="skill_a", columns="skill_b", values="cooccur_count", fill_value=0
     )
-    # symmetrize so both triangles are filled (skill_a < skill_b ordering from Counter)
     pivot = pivot.add(pivot.T, fill_value=0)
     pivot.columns.name = None
     pivot.index.name = None
@@ -125,14 +153,14 @@ def _build_pivot(bundles: pd.DataFrame, top_n: int) -> pd.DataFrame:
 
 st.subheader("Top Skills by Frequency")
 n = st.slider("Number of skills", min_value=10, max_value=50, value=25)
-skills_frequency_chart(conn, n, company, location)
+skills_frequency_chart(conn, n)
 
 st.divider()
 
 st.subheader("Skills Breakdown by Category")
 categories = get_categories(conn)
 selected_cat = st.selectbox("Category", ["All"] + categories)
-st.bar_chart(get_top_cat_skills(conn, company, location, selected_cat))
+st.bar_chart(get_top_cat_skills(conn, selected_cat))
 
 st.divider()
 
@@ -141,13 +169,28 @@ st.caption(
     f"Top {_HEATMAP_SKILLS} skills by co-occurrence — "
     f"sampled from up to {_COOCCURRENCE_SAMPLE:,} postings."
 )
-bundles = get_cooccurrence_filtered(conn, company, location)
-
+bundles = get_cooccurrence(conn)
 pivot = _build_pivot(bundles, _HEATMAP_SKILLS)
 if pivot.empty:
     st.info("Not enough co-occurrence data to render heatmap.")
 else:
     st.dataframe(
         pivot.style.background_gradient(cmap="Blues"),
+        width="stretch",
+    )
+
+st.divider()
+
+st.subheader("Skill × Job Category Heatmap")
+st.caption(
+    f"Top {_HEATMAP_SKILLS} skills (by overall frequency) × job categories — "
+    f"sampled from up to {_THEME_HEATMAP_SAMPLE:,} postings."
+)
+theme_pivot = get_skill_theme_matrix(conn)
+if theme_pivot.empty:
+    st.info("Not enough data to render skill × category heatmap.")
+else:
+    st.dataframe(
+        theme_pivot.style.background_gradient(cmap="Oranges"),
         width="stretch",
     )

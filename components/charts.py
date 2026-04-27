@@ -1,3 +1,5 @@
+from datetime import date
+
 import altair as alt
 import duckdb
 import streamlit as st
@@ -6,9 +8,13 @@ from data.db import PARQUET_S3_PATH, filter_conditions
 
 
 def top_companies_chart(
-    conn: duckdb.DuckDBPyConnection, n: int, company: str, location: str
+    conn: duckdb.DuckDBPyConnection,
+    n: int,
+    company: str,
+    country: str,
+    date_range: tuple[date, date] | None,
 ) -> None:
-    conditions, params = filter_conditions(company, location)
+    conditions, params = filter_conditions(company, country, date_range)
     where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
     df = (
         conn.execute(
@@ -26,24 +32,18 @@ def top_companies_chart(
     st.bar_chart(df)
 
 
-def skills_frequency_chart(
-    conn: duckdb.DuckDBPyConnection, n: int, company: str, location: str
-) -> None:
-    conditions, params = filter_conditions(company, location)
-    conditions.append("category IS NOT NULL")
-    where = f"WHERE {' AND '.join(conditions)}"
+def skills_frequency_chart(conn: duckdb.DuckDBPyConnection, n: int) -> None:
     df = conn.execute(
         f"""
         SELECT skill, COUNT(*) AS "Count"
         FROM (
             SELECT TRIM(UNNEST(string_split(skills_norm, ','))) AS skill
             FROM read_parquet('{PARQUET_S3_PATH}')
-            {where}
+            WHERE category IS NOT NULL
         )
         WHERE skill IS NOT NULL AND TRIM(skill) != '' AND LOWER(TRIM(skill)) != 'nan'
         GROUP BY skill ORDER BY "Count" DESC LIMIT {n}
         """,
-        params,
     ).df()
     chart = (
         alt.Chart(df)
