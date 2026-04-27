@@ -76,7 +76,7 @@ st.dataframe(
         },
         na_rep="—",
     ),
-    use_container_width=True,
+    width="stretch",
 )
 
 st.divider()
@@ -107,4 +107,4 @@ else:
         )
         .properties(height=450)
     )
-    st.altair_chart(chart, use_container_width=True)
+    st.altair_chart(chart, width="stretch")
