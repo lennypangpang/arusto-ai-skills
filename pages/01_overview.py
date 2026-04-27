@@ -1,3 +1,5 @@
+from datetime import date
+
 import matplotlib.pyplot as plt
 import pandas as pd
 import streamlit as st
@@ -10,12 +12,17 @@ st.set_page_config(page_title="Overview", layout="wide")
 st.title("Overview")
 
 conn = get_db_connection()
-company, location = sidebar_filters(conn)
+company, country, date_range = sidebar_filters(conn)
 
 
 @st.cache_data
-def get_metrics(_conn, company: str, location: str) -> tuple[int, int, int]:
-    conditions, params = filter_conditions(company, location)
+def get_metrics(
+    _conn,
+    company: str,
+    country: str,
+    date_range: tuple[date, date],
+) -> tuple[int, int, int]:
+    conditions, params = filter_conditions(company, country, date_range)
     where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
     return _conn.execute(
         f"""
@@ -31,8 +38,13 @@ def get_metrics(_conn, company: str, location: str) -> tuple[int, int, int]:
 
 
 @st.cache_data
-def get_top_jobs(_conn, company: str, location: str) -> pd.DataFrame:
-    conditions, params = filter_conditions(company, location)
+def get_top_jobs(
+    _conn,
+    company: str,
+    country: str,
+    date_range: tuple[date, date],
+) -> pd.DataFrame:
+    conditions, params = filter_conditions(company, country, date_range)
     where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
     return (
         _conn.execute(
@@ -50,8 +62,13 @@ def get_top_jobs(_conn, company: str, location: str) -> pd.DataFrame:
 
 
 @st.cache_data
-def get_day_of_week(_conn, company: str, location: str) -> pd.DataFrame:
-    conditions, params = filter_conditions(company, location)
+def get_day_of_week(
+    _conn,
+    company: str,
+    country: str,
+    date_range: tuple[date, date],
+) -> pd.DataFrame:
+    conditions, params = filter_conditions(company, country, date_range)
     time_where = f"WHERE {' AND '.join(conditions + ['first_seen IS NOT NULL'])}"
     return (
         _conn.execute(
@@ -69,8 +86,13 @@ def get_day_of_week(_conn, company: str, location: str) -> pd.DataFrame:
 
 
 @st.cache_data
-def get_job_level(_conn, company: str, location: str) -> pd.DataFrame:
-    conditions, params = filter_conditions(company, location)
+def get_job_level(
+    _conn,
+    company: str,
+    country: str,
+    date_range: tuple[date, date],
+) -> pd.DataFrame:
+    conditions, params = filter_conditions(company, country, date_range)
     where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
     return (
         _conn.execute(
@@ -88,8 +110,13 @@ def get_job_level(_conn, company: str, location: str) -> pd.DataFrame:
 
 
 @st.cache_data
-def get_top_locations(_conn, company: str, location: str) -> pd.DataFrame:
-    conditions, params = filter_conditions(company, location)
+def get_top_locations(
+    _conn,
+    company: str,
+    country: str,
+    date_range: tuple[date, date],
+) -> pd.DataFrame:
+    conditions, params = filter_conditions(company, country, date_range)
     where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
     return (
         _conn.execute(
@@ -107,8 +134,13 @@ def get_top_locations(_conn, company: str, location: str) -> pd.DataFrame:
 
 
 @st.cache_data
-def get_hourly(_conn, company: str, location: str) -> pd.DataFrame:
-    conditions, params = filter_conditions(company, location)
+def get_hourly(
+    _conn,
+    company: str,
+    country: str,
+    date_range: tuple[date, date],
+) -> pd.DataFrame:
+    conditions, params = filter_conditions(company, country, date_range)
     time_where = f"WHERE {' AND '.join(conditions + ['first_seen IS NOT NULL'])}"
     return (
         _conn.execute(
@@ -126,8 +158,13 @@ def get_hourly(_conn, company: str, location: str) -> pd.DataFrame:
 
 
 @st.cache_data
-def get_day_of_month(_conn, company: str, location: str) -> pd.Series:
-    conditions, params = filter_conditions(company, location)
+def get_day_of_month(
+    _conn,
+    company: str,
+    country: str,
+    date_range: tuple[date, date],
+) -> pd.Series:
+    conditions, params = filter_conditions(company, country, date_range)
     time_where = f"WHERE {' AND '.join(conditions + ['first_seen IS NOT NULL'])}"
     return (
         _conn.execute(
@@ -145,8 +182,13 @@ def get_day_of_month(_conn, company: str, location: str) -> pd.Series:
 
 
 @st.cache_data
-def get_search_positions(_conn, company: str, location: str) -> pd.DataFrame:
-    conditions, params = filter_conditions(company, location)
+def get_search_positions(
+    _conn,
+    company: str,
+    country: str,
+    date_range: tuple[date, date],
+) -> pd.DataFrame:
+    conditions, params = filter_conditions(company, country, date_range)
     where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
     return (
         _conn.execute(
@@ -163,9 +205,17 @@ def get_search_positions(_conn, company: str, location: str) -> pd.DataFrame:
     )
 
 
-day_order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+day_order = [
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
+]
 
-metrics = get_metrics(conn, company, location)
+metrics = get_metrics(conn, company, country, date_range)
 col1, col2, col3 = st.columns(3)
 col1.metric("Total Postings", f"{metrics[0]:,}")
 col2.metric("Unique Companies", f"{metrics[1]:,}")
@@ -174,29 +224,27 @@ col3.metric("Unique Locations", f"{metrics[2]:,}")
 st.divider()
 
 st.subheader("Top 10 Job Titles")
-st.bar_chart(get_top_jobs(conn, company, location))
+st.bar_chart(get_top_jobs(conn, company, country, date_range))
 
 st.subheader("Job Postings by Day of Week")
 st.bar_chart(
-    get_day_of_week(conn, company, location)
-    .reindex(day_order)
-    .fillna(0)
+    get_day_of_week(conn, company, country, date_range).reindex(day_order).fillna(0)
 )
 
 st.subheader("Top 10 Companies by Job Count")
-top_companies_chart(conn, 10, company, location)
+top_companies_chart(conn, 10, company, country, date_range)
 
 st.subheader("Job Level Distribution")
-st.bar_chart(get_job_level(conn, company, location))
+st.bar_chart(get_job_level(conn, company, country, date_range))
 
 st.subheader("Top 10 Job Locations")
-st.bar_chart(get_top_locations(conn, company, location))
+st.bar_chart(get_top_locations(conn, company, country, date_range))
 
 st.subheader("Job Postings by Hour of Day")
-st.bar_chart(get_hourly(conn, company, location))
+st.bar_chart(get_hourly(conn, company, country, date_range))
 
 st.subheader("Job Openings by Day of Month")
-days = get_day_of_month(conn, company, location)
+days = get_day_of_month(conn, company, country, date_range)
 if len(days) < 2:
     st.info("Not enough date data to render distribution.")
 else:
@@ -208,4 +256,4 @@ else:
     plt.close(fig)
 
 st.subheader("Search Position Distribution")
-st.bar_chart(get_search_positions(conn, company, location))
+st.bar_chart(get_search_positions(conn, company, country, date_range))

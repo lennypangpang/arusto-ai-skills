@@ -1,3 +1,5 @@
+from datetime import date
+
 import duckdb
 import streamlit as st
 
@@ -6,6 +8,8 @@ from data.loader import _get_r2_credentials
 _R2_ENDPOINT_HOST = "a9e4828e0e2c14c92a0618cded4bf6b6.r2.cloudflarestorage.com"
 _R2_BUCKET = "arusto-skills"
 PARQUET_S3_PATH = f"s3://{_R2_BUCKET}/jobs.parquet"
+TOPIC_RANKINGS_S3_PATH = f"s3://{_R2_BUCKET}/topic_rankings.parquet"
+SKILL_THEME_MAP_S3_PATH = f"s3://{_R2_BUCKET}/skill_theme_map.parquet"
 
 _SESSION_KEY = "duckdb_conn"
 
@@ -33,13 +37,22 @@ def get_db_connection() -> duckdb.DuckDBPyConnection:
     return st.session_state[_SESSION_KEY]
 
 
-def filter_conditions(company: str, location: str) -> tuple[list[str], list[str]]:
+def filter_conditions(
+    company: str,
+    country: str,
+    date_range: tuple[date, date] | None,
+) -> tuple[list[str], list[str | date]]:
     conditions: list[str] = []
-    params: list[str] = []
+    params: list[str | date] = []
     if company != "All":
         conditions.append("company = ?")
         params.append(company)
-    if location != "All":
-        conditions.append("search_city = ?")
-        params.append(location)
+    if country != "All":
+        conditions.append("search_country = ?")
+        params.append(country)
+    if date_range is not None:
+        conditions.append("first_seen >= ?")
+        params.append(date_range[0])
+        conditions.append("first_seen <= ?")
+        params.append(date_range[1])
     return conditions, params
