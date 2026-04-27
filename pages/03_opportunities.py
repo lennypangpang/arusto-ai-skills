@@ -30,23 +30,12 @@ def get_all_topics(_conn: object) -> pd.DataFrame:
     ).df()
 
 
-@st.cache_data
-def get_label_counts(_conn: object) -> tuple[int, int, int, int]:
-    row = _conn.execute(
-        f"""
-        SELECT
-            COUNT(*) AS total,
-            COUNT(*) FILTER (WHERE opportunity_label = 'High Opportunity') AS high,
-            COUNT(*) FILTER (WHERE opportunity_label = 'Emerging') AS emerging,
-            COUNT(*) FILTER (WHERE opportunity_label = 'Saturated') AS saturated
-        FROM read_parquet('{TOPIC_RANKINGS_S3_PATH}')
-        """
-    ).fetchone()
-    return row if row else (0, 0, 0, 0)
-
-
 topics = get_all_topics(conn)
-total, high, emerging, saturated = get_label_counts(conn)
+labels = topics["opportunity_label"]
+total = len(topics)
+high = int((labels == "High Opportunity").sum())
+emerging = int((labels == "Emerging").sum())
+saturated = int((labels == "Saturated").sum())
 
 col1, col2, col3, col4 = st.columns(4)
 col1.metric("Total Topics", f"{total:,}")

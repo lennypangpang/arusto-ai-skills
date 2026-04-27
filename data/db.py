@@ -41,9 +41,9 @@ def filter_conditions(
     company: str,
     country: str,
     date_range: tuple[date, date] | None,
-) -> tuple[list[str], list]:
+) -> tuple[list[str], list[str | date]]:
     conditions: list[str] = []
-    params: list = []
+    params: list[str | date] = []
     if company != "All":
         conditions.append("company = ?")
         params.append(company)
