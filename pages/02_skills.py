@@ -1,6 +1,7 @@
 from collections import Counter
 from itertools import combinations
 
+import altair as alt
 import pandas as pd
 import streamlit as st
 
@@ -160,7 +161,16 @@ st.divider()
 st.subheader("Skills Breakdown by Category")
 categories = get_categories(conn)
 selected_cat = st.selectbox("Category", ["All"] + categories)
-st.bar_chart(get_top_cat_skills(conn, selected_cat))
+_cat_df = get_top_cat_skills(conn, selected_cat).reset_index()
+st.altair_chart(
+    alt.Chart(_cat_df)
+    .mark_bar()
+    .encode(
+        x=alt.X("skill:N", sort=None, title="Skill"),
+        y=alt.Y("Count:Q", title="Count"),
+    ),
+    width="stretch",
+)
 
 st.divider()
 

@@ -16,20 +16,24 @@ def top_companies_chart(
 ) -> None:
     conditions, params = filter_conditions(company, country, date_range)
     where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
-    df = (
-        conn.execute(
-            f"""
+    df = conn.execute(
+        f"""
         SELECT company, COUNT(*) AS "Job Postings"
         FROM read_parquet('{PARQUET_S3_PATH}')
         {where}
         GROUP BY company ORDER BY "Job Postings" DESC LIMIT {n}
         """,
-            params,
+        params,
+    ).df()
+    chart = (
+        alt.Chart(df)
+        .mark_bar()
+        .encode(
+            x=alt.X("company:N", sort=None, title="Company"),
+            y=alt.Y("Job Postings:Q", title="Job Postings"),
         )
-        .df()
-        .set_index("company")
     )
-    st.bar_chart(df)
+    st.altair_chart(chart, width="stretch")
 
 
 def skills_frequency_chart(conn: duckdb.DuckDBPyConnection, n: int) -> None:

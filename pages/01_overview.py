@@ -1,5 +1,6 @@
 from datetime import date
 
+import altair as alt
 import matplotlib.pyplot as plt
 import pandas as pd
 import streamlit as st
@@ -134,30 +135,6 @@ def get_top_locations(
 
 
 @st.cache_data
-def get_hourly(
-    _conn,
-    company: str,
-    country: str,
-    date_range: tuple[date, date],
-) -> pd.DataFrame:
-    conditions, params = filter_conditions(company, country, date_range)
-    time_where = f"WHERE {' AND '.join(conditions + ['first_seen IS NOT NULL'])}"
-    return (
-        _conn.execute(
-            f"""
-            SELECT hour(first_seen) AS hour, COUNT(*) AS "Postings"
-            FROM read_parquet('{PARQUET_S3_PATH}')
-            {time_where}
-            GROUP BY hour ORDER BY hour
-            """,
-            params,
-        )
-        .df()
-        .set_index("hour")
-    )
-
-
-@st.cache_data
 def get_day_of_month(
     _conn,
     company: str,
@@ -224,7 +201,16 @@ col3.metric("Unique Locations", f"{metrics[2]:,}")
 st.divider()
 
 st.subheader("Top 10 Job Titles")
-st.bar_chart(get_top_jobs(conn, company, country, date_range))
+_jobs_df = get_top_jobs(conn, company, country, date_range).reset_index()
+st.altair_chart(
+    alt.Chart(_jobs_df)
+    .mark_bar()
+    .encode(
+        x=alt.X("job_title:N", sort=None, title="Job Title"),
+        y=alt.Y("Listings:Q", title="Listings"),
+    ),
+    width="stretch",
+)
 
 st.subheader("Job Postings by Day of Week")
 st.bar_chart(
@@ -238,10 +224,16 @@ st.subheader("Job Level Distribution")
 st.bar_chart(get_job_level(conn, company, country, date_range))
 
 st.subheader("Top 10 Job Locations")
-st.bar_chart(get_top_locations(conn, company, country, date_range))
-
-st.subheader("Job Postings by Hour of Day")
-st.bar_chart(get_hourly(conn, company, country, date_range))
+_loc_df = get_top_locations(conn, company, country, date_range).reset_index()
+st.altair_chart(
+    alt.Chart(_loc_df)
+    .mark_bar()
+    .encode(
+        x=alt.X("search_city:N", sort=None, title="City"),
+        y=alt.Y("Postings:Q", title="Postings"),
+    ),
+    width="stretch",
+)
 
 st.subheader("Job Openings by Day of Month")
 days = get_day_of_month(conn, company, country, date_range)
