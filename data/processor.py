@@ -41,288 +41,6 @@ def _norm_role(x: str) -> str:
     return re.sub(r"\s+", " ", str(x).strip().lower())
 
 
-CLUSTER_PATTERNS: dict[str, list[str]] = {
-    "Technology & Software Engineering": [
-        r"software",
-        r"developer\b",
-        r"programmer",
-        r"computer\s*(operator|programmer|engineer|scientist)",
-        r"data\s*base\s*admin",
-        r"database\s*admin",
-        r"systems\s*analyst",
-        r"network\s*engineer",
-        r"web\s*designer",
-        r"devops",
-        r"cloud\s*engineer",
-        r"information\s*security",
-        r"cyber",
-        r"machine\s*learning",
-        r"artificial\s*intelligence",
-        r"controls\s*designer",
-        r"central.office.equip",
-        r"automated.equipment",
-        r"electronics\s*engineer",
-        r"electronic.*engineer",
-        r"telecommunications.*engineer",
-    ],
-    "Healthcare & Clinical Practice": [
-        r"nurse",
-        r"\bphysician\b",
-        r"\bdoctor\b",
-        r"surgeon\b",
-        r"anesthesi",
-        r"radiolog",
-        r"patholog",
-        r"pediatri",
-        r"gynecolog",
-        r"obstetri",
-        r"cardiolog",
-        r"dermatolog",
-        r"ophthalmolog",
-        r"orthopedic",
-        r"pharmacist",
-        r"pharmacy\b",
-        r"medical\s*technolog",
-        r"phlebotom",
-        r"ultrasound",
-        r"nuclear\s*medicine",
-        r"perfusion",
-        r"surgical\s*tech",
-        r"dental",
-        r"optometr",
-        r"audiolog",
-        r"respiratory\s*ther",
-        r"radiation.*therap",
-        r"biomedical",
-        r"paramedic",
-        r"clinical\s*lab",
-        r"medical\s*assistant",
-        r"internist",
-        r"neurolog",
-        r"psychiatrist",
-        r"podiatrist",
-        r"family\s*practitioner",
-        r"general\s*practitioner",
-        r"medical\s*physicist",
-        r"biochemistry\s*technolog",
-    ],
-    "Data, Analytics & Finance": [
-        r"\baccountant\b",
-        r"\bauditor\b",
-        r"budget\s*(analyst|officer|clerk)",
-        r"financial\s*(analyst|officer|planner)",
-        r"\beconomist\b",
-        r"\bactuary\b",
-        r"\bstatistician\b",
-        r"tax\s*(prepar|account)",
-        r"\bpayroll\b",
-        r"\bbilling\b",
-        r"cost\s*account",
-        r"management\s*analyst",
-        r"data\s*(analys|scientist)",
-        r"business\s*analyst",
-        r"\bcontroller\b",
-        r"insurance\s*examin",
-        r"claim\s*examin",
-        r"\bunderwrite",
-        r"investment\s*analyst",
-        r"securities",
-        r"job\s*analyst",
-        r"manager\s*compensation",
-    ],
-    "Sales, Marketing & Business Development": [
-        r"account\s*executive",
-        r"sales\s*(agent|manager|represent|attendant)",
-        r"circulation.*sales",
-        r"\bmarketing\b",
-        r"\badvertising\b",
-        r"market\s*research",
-        r"public\s*relations",
-        r"\bbuyer\b",
-        r"purchasing\s*agent",
-        r"procurement",
-        r"customer\s*service",
-        r"customer\s*success",
-        r"field\s*representative",
-        r"insurance\s*agent",
-        r"real\s*estate\s*agent",
-        r"sales\s*representative",
-        r"commercial\s*engineer",
-    ],
-    "Education & Training": [
-        r"\binstructor\b",
-        r"\bteacher\b",
-        r"\bprofessor\b",
-        r"\bprincipal\b",
-        r"assistant\s*principal",
-        r"director.*education",
-        r"academic\s*dean",
-        r"consultant\s*education",
-        r"school\s*counselor",
-        r"\blibrarian\b",
-        r"curriculum",
-        r"athletic\s*trainer",
-        r"head\s*coach",
-        r"\bcoach\b",
-        r"director\s*athletic",
-        r"special\s*education",
-        r"attendance\s*officer",
-        r"director.*educational",
-        r"\bregistrar\b",
-    ],
-    "Engineering & Construction": [
-        r"civil\s*engineer",
-        r"structural\s*engineer",
-        r"mechanical\s*engineer",
-        r"electrical\s*(engineer|supervisor)",
-        r"chemical\s*engineer",
-        r"aeronautical",
-        r"aerospace",
-        r"automotive.*engineer",
-        r"manufacturing.*engineer",
-        r"industrial\s*engineer",
-        r"environmental\s*engineer",
-        r"agricultural.*engineer",
-        r"power.*transmission",
-        r"airport\s*engineer",
-        r"bridge\s*inspector",
-        r"building\s*(inspector|consultant)",
-        r"construction\s*superintendent",
-        r"\barchitect\b",
-        r"\bdrafter\b",
-        r"\bsurveyor\b",
-        r"\belectrician\b",
-        r"\bplumber\b",
-        r"pipe\s*(fitter|layer)",
-        r"\bboilermaker\b",
-        r"\bcarpenter\b",
-        r"\bwelder\b",
-        r"\bmachinist\b",
-        r"fabricat",
-    ],
-    "Operations, Logistics & Supply Chain": [
-        r"driver\s*supervisor",
-        r"\bdriver\b",
-        r"\bdispatcher\b",
-        r"\bscheduler\b",
-        r"\bwarehouse\b",
-        r"\binventory\b",
-        r"\blogistics\b",
-        r"supply\s*chain",
-        r"\bshipping\b",
-        r"\breceiving\b",
-        r"\bforklift\b",
-        r"\bassembler\b",
-        r"production\s*supervisor",
-        r"quality\s*(inspector|control)",
-        r"safety\s*manager",
-        r"car\s*inspector",
-        r"food\s*service\s*driver",
-        r"documentation\s*supervisor",
-        r"preparation\s*supervisor",
-        r"pressure\s*supervisor",
-        r"\bmaintenance\s*(supervisor|technician|manager)\b",
-        r"\binspector\b",
-    ],
-    "Management, HR & Recruiting": [
-        r"\brecruiter\b",
-        r"human\s*resources",
-        r"\bpersonnel\b",
-        r"manager\s*benefits",
-        r"manager\s*employment",
-        r"manager\s*department",
-        r"manager\s*customer",
-        r"manager\s*sales",
-        r"manager\s*records",
-        r"manager\s*(display|personnel|internal\s*security|compensation)",
-        r"director\s*social",
-        r"project\s*manager",
-        r"program\s*manager",
-        r"general\s*manager",
-        r"store\s*manager",
-        r"restaurant\s*manager",
-        r"equal.opportunity",
-        r"retirement\s*officer",
-        r"labor\s*relations",
-        r"change\s*person",
-        r"administrative\s*assistant",
-    ],
-    "Hospitality, Food & Customer Experience": [
-        r"\bchef\b",
-        r"\bcook\b",
-        r"\bbaker\b",
-        r"\bbartender\b",
-        r"host/hostess",
-        r"\bhost\b",
-        r"food.*service",
-        r"\brestaurant\b",
-        r"\bcafeteria\b",
-        r"\bell\s*captain\b",
-        r"\bhousekeeper\b",
-        r"\bcleaner\b",
-        r"\bjanitor\b",
-        r"\bcustodian\b",
-        r"travel\s*guide",
-        r"guide\s*travel",
-        r"personal\s*shopper",
-        r"check\s*cashier",
-        r"\bcashier\b",
-        r"bakery\s*supervisor",
-        r"sales\s*associate",
-        r"\bbarber\b",
-        r"companion\b",
-        r"\borderly\b",
-        r"contact\s*clerk",
-        r"clerk\s*general",
-    ],
-    "Creative, Media & Social Services": [
-        r"art\s*director",
-        r"art\s*therapist",
-        r"\bdesigner\b",
-        r"graphic",
-        r"photographer",
-        r"camera\s*operator",
-        r"\bproducer\b",
-        r"\beditor\b",
-        r"\bwriter\b",
-        r"copywriter",
-        r"journalist",
-        r"\breporter\b",
-        r"social\s*worker",
-        r"\bcounselor\b",
-        r"\btherapist\b",
-        r"psycholog",
-        r"rehabilitation",
-        r"recreation",
-        r"\bclergy\b",
-        r"\bchaplain\b",
-        r"public\s*health",
-        r"\bactor\b",
-        r"\bmodel\b",
-        r"\bperformer\b",
-        r"\bmusician\b",
-        r"\barchivist\b",
-        r"audiovisual",
-        r"caption\s*writer",
-        r"director\s*(stage|nursing\s*service)",
-        r"\bveterinarian\b",
-        r"\blawyer\b",
-        r"insurance\s*attorney",
-        r"biologist\b",
-        r"animal\s*(caretaker|keeper|scientist)",
-    ],
-}
-
-
-def assign_cluster(position: str) -> str:
-    p = str(position).lower()
-    for theme, patterns in CLUSTER_PATTERNS.items():
-        for pat in patterns:
-            if re.search(pat, p):
-                return theme
-    return "Other / Miscellaneous"
-
-
 W_VOLUME, W_SALARY, W_BREADTH = 0.40, 0.35, 0.25
 W_REMOTE, W_HYBRID, W_SENIOR = 0.40, 0.25, 0.35
 W_CITY, W_COMPANY = 0.50, 0.50
@@ -443,6 +161,7 @@ def pipeline_config_hash() -> str:
         "MIN_VOLUME": MIN_VOLUME,
         "SEED_KEYWORDS": SEED_KEYWORDS,
         "IS_NOISE_SKILL_VERSION": IS_NOISE_SKILL_VERSION,
+        "_NOISE_JOB_ROLES": sorted(_NOISE_JOB_ROLES),
     }
     return hashlib.md5(json.dumps(config, sort_keys=True).encode()).hexdigest()
 
@@ -686,7 +405,7 @@ _BENEFITS_NOISE_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"\bbereavement\b"),
     re.compile(r"\bjury duty\b"),
     re.compile(r"\bleave(s)? of absence\b"),
-    re.compile(r"\blo(a)?\b"),
+    re.compile(r"\bloa\b"),
     re.compile(r"\bbenefits?\b"),
     re.compile(r"\bbenefits package\b"),
     re.compile(r"\bhealth insurance\b"),
@@ -781,13 +500,13 @@ _BENEFITS_NOISE_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"\btoxic chemicals?\b"),
     re.compile(r"\bexposure to irritant chemicals\b"),
     re.compile(r"\birritant chemicals?\b"),
-    re.compile(r"\bchemical\b"),
+    re.compile(r"\bchemical (dependency|exposure|hazard)\b"),
     re.compile(r"long service awards?"),
     re.compile(r"\bonesite\b"),
     re.compile(r"\bdivorce\b"),
-    re.compile(r"\bmarriage\b|\bmarried\b|\bsingle\b|\bdomestic partner\b"),
+    re.compile(r"\bmarriage\b|\bmarried\b|\bdomestic partner\b"),
     re.compile(r"\bheight\b|\bweight\b|\bbmi\b|\bbody mass\b"),
-    re.compile(r"\brace\b|\bethnicity\b|\breligion\b|\bfaith\b"),
+    re.compile(r"\bethnicity\b|\breligion\b|\bfaith\b"),
     re.compile(r"\blgbtq?\+?\b|\blgbt\b"),
     re.compile(r"\bdei\b|\bde&i\b"),
     re.compile(
@@ -1066,8 +785,7 @@ def train_skill_theme_model(
     freq: Counter = Counter()
     for cell in skills_raw["job_skills"].tolist():
         for sk in parse_skill_list(cell):
-            if not is_noise_skill(sk):
-                freq[sk] += 1
+            freq[sk] += 1
 
     rows = [{"skill": s, "skill_count": c} for s, c in freq.most_common(top_n)]
     skills_df = pd.DataFrame(rows)
@@ -1187,8 +905,7 @@ def build_skill_theme_map(
     freq: Counter = Counter()
     for cell in skills_raw["job_skills"].tolist():
         for sk in parse_skill_list(cell):
-            if not is_noise_skill(sk):
-                freq[sk] += 1
+            freq[sk] += 1
 
     rows = [{"skill": s, "skill_count": c} for s, c in freq.most_common(top_n)]
     df = pd.DataFrame(rows)
@@ -1292,23 +1009,22 @@ def skill_bundle_pairs(skills_raw: pd.DataFrame, top_pairs: int = 250) -> pd.Dat
 
 
 def compute_location_toplists(postings: pd.DataFrame, top_k: int = 25) -> pd.DataFrame:
+    rows = []
+    for loc_type, col in [("city", "search_city"), ("country", "search_country")]:
+        for name, count in postings[col].value_counts().head(top_k).items():
+            if name and name != "Unknown":
+                rows.append(
+                    {"location_type": loc_type, "name": name, "volume": int(count)}
+                )
+
+    # state is not a structured column — requires parsing job_location
     countries = set(postings["search_country"].dropna().unique())
-    c_city: Counter = Counter()
     c_state: Counter = Counter()
-    c_country: Counter = Counter()
     for loc in postings["job_location"]:
-        city, state, country = parse_job_location(loc, countries)
-        if city:
-            c_city[city] += 1
+        _, state, _ = parse_job_location(loc, countries)
         if state:
             c_state[state] += 1
-        if country:
-            c_country[country] += 1
-    rows = []
-    for name, count in c_city.most_common(top_k):
-        rows.append({"location_type": "city", "name": name, "volume": count})
     for name, count in c_state.most_common(top_k):
         rows.append({"location_type": "state", "name": name, "volume": count})
-    for name, count in c_country.most_common(top_k):
-        rows.append({"location_type": "country", "name": name, "volume": count})
+
     return pd.DataFrame(rows)
