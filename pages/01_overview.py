@@ -183,13 +183,13 @@ def get_search_positions(
 
 
 day_order = [
+    "Sunday",
     "Monday",
     "Tuesday",
     "Wednesday",
     "Thursday",
     "Friday",
     "Saturday",
-    "Sunday",
 ]
 
 metrics = get_metrics(conn, company, country, date_range)
