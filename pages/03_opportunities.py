@@ -287,7 +287,7 @@ with tabs[0]:
             alt.Chart(topics_df)
             .mark_bar()
             .encode(
-                x=alt.X("job_role:N", sort=None, title="Course Topic"),
+                x=alt.X("job_role:N", sort=None, title="Job Role"),
                 y=alt.Y("course_opportunity_score:Q", title="Opportunity Score"),
                 color=alt.Color(
                     "opportunity_label:N",
@@ -340,7 +340,7 @@ with tabs[0]:
             alt.Chart(trend_df)
             .mark_bar()
             .encode(
-                x=alt.X("job_role:N", sort=None, title="Course Topic"),
+                x=alt.X("job_role:N", sort=None, title="Job Role"),
                 y=alt.Y("trend_30d:Q", title="Slope (postings/week)"),
                 color=alt.Color(
                     "trend_30d:Q",
