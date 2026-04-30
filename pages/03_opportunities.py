@@ -73,7 +73,7 @@ def get_topic_rankings(label: str, top_n: int, country: str) -> pd.DataFrame:
         params.append(label)
     if country != "All":
         conditions.append(
-            f"r.course_topic IN ("
+            f"r.job_role IN ("
             f"SELECT DISTINCT search_position"
             f" FROM read_parquet('{PARQUET_S3_PATH}')"
             f" WHERE search_country = ?)"
@@ -82,9 +82,8 @@ def get_topic_rankings(label: str, top_n: int, country: str) -> pd.DataFrame:
     where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
     return con.execute(
         f"""
-        SELECT r.rank, r.course_topic, r.course_opportunity_score, r.opportunity_label,
-               r.volume, r.salary_proxy, r.breadth_score,
-               r.trend_slope, r.forecast_4w, r.forecast_12w, r.trend_label
+        SELECT r.rank, r.job_role, r.course_opportunity_score, r.opportunity_label,
+               r.volume, r.salary_proxy, r.breadth_score, r.trend_30d
         FROM read_parquet('{TOPIC_RANKINGS_S3_PATH}') r
         {where}
         ORDER BY r.rank
@@ -98,7 +97,7 @@ def get_topic_rankings(label: str, top_n: int, country: str) -> pd.DataFrame:
 def get_top_topics_chart(top_n: int) -> pd.DataFrame:
     con = get_db_connection()
     return con.execute(f"""
-        SELECT course_topic, course_opportunity_score, opportunity_label
+        SELECT job_role, course_opportunity_score, opportunity_label
         FROM read_parquet('{TOPIC_RANKINGS_S3_PATH}')
         ORDER BY course_opportunity_score DESC
         LIMIT {top_n}
@@ -109,7 +108,7 @@ def get_top_topics_chart(top_n: int) -> pd.DataFrame:
 def get_volume_vs_salary() -> pd.DataFrame:
     con = get_db_connection()
     return con.execute(f"""
-        SELECT course_topic, volume, salary_proxy, breadth_score, opportunity_label
+        SELECT job_role, volume, salary_proxy, breadth_score, opportunity_label
         FROM read_parquet('{TOPIC_RANKINGS_S3_PATH}')
         ORDER BY volume DESC
         LIMIT 100
@@ -120,9 +119,9 @@ def get_volume_vs_salary() -> pd.DataFrame:
 def get_trend_top(top_n: int) -> pd.DataFrame:
     con = get_db_connection()
     return con.execute(f"""
-        SELECT course_topic, trend_slope
+        SELECT job_role, trend_30d
         FROM read_parquet('{TOPIC_RANKINGS_S3_PATH}')
-        ORDER BY trend_slope DESC
+        ORDER BY trend_30d DESC
         LIMIT {top_n}
     """).df()
 
@@ -133,7 +132,7 @@ def get_job_explorer(search: str, label: str) -> pd.DataFrame:
     conditions: list[str] = []
     params: list[str | float] = []
     if search:
-        conditions.append("LOWER(course_topic) LIKE ?")
+        conditions.append("LOWER(job_role) LIKE ?")
         params.append(f"%{search.lower()}%")
     if label != "All":
         conditions.append("opportunity_label = ?")
@@ -141,9 +140,8 @@ def get_job_explorer(search: str, label: str) -> pd.DataFrame:
     where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
     return con.execute(
         f"""
-        SELECT rank, course_topic, course_opportunity_score, opportunity_label,
-               volume, salary_proxy, breadth_score,
-               trend_slope, forecast_4w, forecast_12w, trend_label
+        SELECT rank, job_role, course_opportunity_score, opportunity_label,
+               volume, salary_proxy, breadth_score, trend_30d
         FROM read_parquet('{TOPIC_RANKINGS_S3_PATH}')
         {where}
         ORDER BY rank
@@ -217,7 +215,7 @@ def get_topic_theme_mix() -> pd.DataFrame:
     con = get_db_connection()
     return con.execute(f"""
         SELECT
-            j.search_position AS course_topic,
+            j.search_position AS job_role,
             s.ml_theme,
             COUNT(*) AS mention_count
         FROM (
@@ -225,7 +223,7 @@ def get_topic_theme_mix() -> pd.DataFrame:
                    unnest(string_split(skills_norm, ',')) AS skill_raw
             FROM read_parquet('{PARQUET_S3_PATH}')
             WHERE search_position IN (
-                SELECT course_topic FROM read_parquet('{TOPIC_RANKINGS_S3_PATH}')
+                SELECT job_role FROM read_parquet('{TOPIC_RANKINGS_S3_PATH}')
             )
               AND skills_norm IS NOT NULL
               AND skills_norm != ''
@@ -289,7 +287,7 @@ with tabs[0]:
             alt.Chart(topics_df)
             .mark_bar()
             .encode(
-                x=alt.X("course_topic:N", sort=None, title="Course Topic"),
+                x=alt.X("job_role:N", sort=None, title="Course Topic"),
                 y=alt.Y("course_opportunity_score:Q", title="Opportunity Score"),
                 color=alt.Color(
                     "opportunity_label:N",
@@ -322,7 +320,7 @@ with tabs[0]:
                 title="Label",
             ),
             size=alt.Size("breadth_score:Q", legend=None),
-            tooltip=["course_topic", "volume", "salary_proxy", "opportunity_label"],
+            tooltip=["job_role", "volume", "salary_proxy", "opportunity_label"],
         ),
         width="stretch",
     )
@@ -333,7 +331,7 @@ with tabs[0]:
         "Slope (postings/week) from OLS fit. Requires ≥4 distinct weeks in dataset."
     )
     trend_df = get_trend_top(top_n)
-    if trend_df.empty or trend_df["trend_slope"].eq(0).all():
+    if trend_df.empty or trend_df["trend_30d"].eq(0).all():
         st.info(
             "No trend signal — dataset lacks sufficient temporal spread for OLS fit."
         )
@@ -342,10 +340,10 @@ with tabs[0]:
             alt.Chart(trend_df)
             .mark_bar()
             .encode(
-                x=alt.X("course_topic:N", sort=None, title="Course Topic"),
-                y=alt.Y("trend_slope:Q", title="Slope (postings/week)"),
+                x=alt.X("job_role:N", sort=None, title="Course Topic"),
+                y=alt.Y("trend_30d:Q", title="Slope (postings/week)"),
                 color=alt.Color(
-                    "trend_slope:Q",
+                    "trend_30d:Q",
                     scale=alt.Scale(scheme=SEQUENTIAL_SCHEME),
                     legend=None,
                 ),
@@ -377,8 +375,8 @@ with tabs[0]:
     if not ranked_df.empty:
         st.subheader("Why these courses? (skill theme mix)")
         mix_df = get_topic_theme_mix()
-        shown_topics = set(ranked_df["course_topic"].astype(str).tolist())
-        mix_filtered = mix_df[mix_df["course_topic"].astype(str).isin(shown_topics)]
+        shown_topics = set(ranked_df["job_role"].astype(str).tolist())
+        mix_filtered = mix_df[mix_df["job_role"].astype(str).isin(shown_topics)]
         st.dataframe(mix_filtered.head(300), use_container_width=True, hide_index=True)
 
     st.subheader("Label rollup")
