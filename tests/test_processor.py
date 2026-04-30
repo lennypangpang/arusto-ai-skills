@@ -48,18 +48,19 @@ def _make_featured(
     records = []
     for i in range(n_positions):
         for j in range(n_per_position):
-            records.append({
-                "job_link": f"pos{i}_job{j}",
-                "search_position": f"Position {i}",
-                "job_type": rng.choice(["Remote", "On-site", "Hybrid"]),
-                "job_level": rng.choice(["Mid senior", "Entry", "Senior"]),
-                "search_city": rng.choice(["New York", "Chicago", "Austin"]),
-                "search_country": rng.choice(["US", "UK", "CA"]),
-                "company": rng.choice(["Corp A", "Corp B", "Corp C"]),
-                "first_seen": base + pd.Timedelta(
-                    days=(j % 20) * 7 + int(rng.integers(0, 7))
-                ),
-            })
+            records.append(
+                {
+                    "job_link": f"pos{i}_job{j}",
+                    "search_position": f"Position {i}",
+                    "job_type": rng.choice(["Remote", "On-site", "Hybrid"]),
+                    "job_level": rng.choice(["Mid senior", "Entry", "Senior"]),
+                    "search_city": rng.choice(["New York", "Chicago", "Austin"]),
+                    "search_country": rng.choice(["US", "UK", "CA"]),
+                    "company": rng.choice(["Corp A", "Corp B", "Corp C"]),
+                    "first_seen": base
+                    + pd.Timedelta(days=(j % 20) * 7 + int(rng.integers(0, 7))),
+                }
+            )
     df = pd.DataFrame(records)
     df["first_seen"] = pd.to_datetime(df["first_seen"])
     return df
